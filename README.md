@@ -4,7 +4,7 @@
 
 In the course of our work building out various cloud-based tools for OMSF and beyond, we have found ourselves repeating a number of patterns in our infrastructure code.
 This repository is an attempt to capture those patterns in reusable modules.
-One one hand, this is a standard "don't repeat yourself" effort, intended to reduce our maintenance burden by centralizing common code in one place.
+On one hand, this is a standard "don't repeat yourself" effort, intended to reduce our maintenance burden by centralizing common code in one place.
 On the other hand, we hope this repository can be useful as part of our efforts to teach infrastructure as code to other OMSF developers, by providing examples of what simple reusable components look like.
 
 ## Structure

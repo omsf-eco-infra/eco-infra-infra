@@ -16,7 +16,7 @@ Backend locking is expected to use the S3 backend's native lockfile support via
 
 ## Requirements
 
-- Terraform or OpenTofu with support for the S3 backend `use_lockfile` option
+- Terraform >= 1.10 or OpenTofu >= 1.10 for the S3 backend `use_lockfile` option
 - AWS provider `~> 4.0`
 
 ## Inputs
