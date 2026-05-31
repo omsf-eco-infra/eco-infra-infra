@@ -43,7 +43,8 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  # Configure the AWS provider as appropriate for the account and region
+  # where this bucket should be created.
 }
 
 module "remote_state" {
@@ -56,7 +57,6 @@ module "remote_state" {
 Minimal variables:
 
 ```hcl
-aws_region  = "us-east-1"
 bucket_name = "my-tfstate-bucket"
 ```
 
