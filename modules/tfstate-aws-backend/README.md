@@ -23,7 +23,6 @@ Backend locking is expected to use the S3 backend's native lockfile support via
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `aws_region` | `string` | AWS region for the bucket |
 | `bucket_name` | `string` | Name of the S3 bucket that will store state |
 
 ## Deploy The Backend Bucket
@@ -50,7 +49,6 @@ provider "aws" {
 module "remote_state" {
   source = "github.com/omsf-eco-infra/eco-infra-infra//modules/tfstate-aws-backend"
 
-  aws_region  = var.aws_region
   bucket_name = var.bucket_name
 }
 ```
