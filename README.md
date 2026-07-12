@@ -17,6 +17,7 @@ On the other hand, we hope this repository can be useful as part of our efforts 
 
 A few of our modules are intended to be used directly by end-users, rather than being building blocks for other tools.
 
+* `github-oidc`: A module to create the AWS IAM OpenID Connect provider for GitHub Actions.
 * `tfstate-aws-backend`: A module to create a Terraform state bucket in AWS.
 
 ### Building Block Modules
