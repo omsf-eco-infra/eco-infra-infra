@@ -1,5 +1,8 @@
 locals {
-  subject_claim_keys = ["repo", "context", "workflow_ref"]
+  github_oidc_provider_url = "https://token.actions.githubusercontent.com"
+  github_repository_name   = split("/", var.github_repository)[1]
+  github_oidc_provider_arn = var.github_oidc_provider_arn == null ? data.aws_iam_openid_connect_provider.github_by_url[0].arn : data.aws_iam_openid_connect_provider.github_by_arn[0].arn
+  subject_claim_keys       = ["repo", "context", "workflow_ref"]
 
   trusted_workflow_contexts = [
     for workflow in var.trusted_workflows :
@@ -28,7 +31,7 @@ locals {
       Sid    = "GitHubActionsAssumeRole"
       Effect = "Allow"
       Principal = {
-        Federated = var.github_oidc_provider_arn
+        Federated = local.github_oidc_provider_arn
       }
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
@@ -40,6 +43,32 @@ locals {
         }
       }
     }]
+  }
+}
+
+data "aws_iam_openid_connect_provider" "github_by_url" {
+  count = var.github_oidc_provider_arn == null ? 1 : 0
+
+  url = local.github_oidc_provider_url
+
+  lifecycle {
+    postcondition {
+      condition     = contains(self.client_id_list, var.github_audience)
+      error_message = "The GitHub OIDC provider must include github_audience in its client ID list."
+    }
+  }
+}
+
+data "aws_iam_openid_connect_provider" "github_by_arn" {
+  count = var.github_oidc_provider_arn == null ? 0 : 1
+
+  arn = var.github_oidc_provider_arn
+
+  lifecycle {
+    postcondition {
+      condition     = contains(self.client_id_list, var.github_audience)
+      error_message = "The GitHub OIDC provider must include github_audience in its client ID list."
+    }
   }
 }
 
@@ -65,4 +94,10 @@ resource "aws_iam_role_policy_attachment" "managed" {
 
   role       = aws_iam_role.github_actions.name
   policy_arn = each.value
+}
+
+resource "github_actions_secret" "role_arn" {
+  repository  = local.github_repository_name
+  secret_name = var.role_secret_name
+  value       = aws_iam_role.github_actions.arn
 }

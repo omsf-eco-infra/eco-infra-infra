@@ -7,7 +7,7 @@ mock_provider "github" {
 }
 
 override_data {
-  target = data.aws_iam_openid_connect_provider.github
+  target = module.test_role.data.aws_iam_openid_connect_provider.github_by_url
   values = {
     arn            = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
     client_id_list = ["sts.amazonaws.com"]
@@ -57,12 +57,40 @@ run "bootstrap_contract" {
   }
 
   assert {
-    condition     = github_actions_secret.test_role_arn.secret_name == "AWS_GHA_TEST_ROLE_ARN"
+    condition     = module.test_role.role_secret_name == "AWS_GHA_TEST_ROLE_ARN"
     error_message = "Bootstrap should publish the test role ARN under the expected secret name."
   }
 
   assert {
     condition     = github_actions_secret.aws_region.secret_name == "AWS_REGION"
     error_message = "Bootstrap should publish the AWS region under the expected secret name."
+  }
+}
+
+run "custom_role_names" {
+  command = plan
+
+  providers = {
+    aws    = aws.mock
+    github = github.mock
+  }
+
+  variables {
+    role_name        = "custom-tests-role"
+    role_secret_name = "CUSTOM_TEST_ROLE_ARN"
+  }
+
+  plan_options {
+    refresh = false
+  }
+
+  assert {
+    condition     = output.test_role_name == "custom-tests-role"
+    error_message = "Bootstrap should pass a custom role name to the role module."
+  }
+
+  assert {
+    condition     = module.test_role.role_secret_name == "CUSTOM_TEST_ROLE_ARN"
+    error_message = "Bootstrap should pass a custom role secret name to the role module."
   }
 }

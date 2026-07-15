@@ -32,11 +32,15 @@ variable "force_detach_policies" {
 }
 
 variable "github_oidc_provider_arn" {
-  description = "ARN of the account's GitHub Actions OIDC identity provider."
+  description = "Optional ARN of the account's GitHub Actions OIDC identity provider. When omitted, the provider is discovered by URL."
   type        = string
+  default     = null
 
   validation {
-    condition     = can(regex(":iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$", var.github_oidc_provider_arn))
+    condition = (
+      var.github_oidc_provider_arn == null ||
+      can(regex(":iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$", var.github_oidc_provider_arn))
+    )
     error_message = "github_oidc_provider_arn must identify token.actions.githubusercontent.com in an AWS account."
   }
 }
@@ -59,6 +63,19 @@ variable "github_repository" {
   validation {
     condition     = can(regex("^[^/[:space:]]+/[^/[:space:]]+$", var.github_repository))
     error_message = "github_repository must be in owner/repo form."
+  }
+}
+
+variable "role_secret_name" {
+  description = "Name of the GitHub Actions repository secret that stores the role ARN."
+  type        = string
+
+  validation {
+    condition = (
+      can(regex("^[A-Za-z_][A-Za-z0-9_]*$", var.role_secret_name)) &&
+      !startswith(upper(var.role_secret_name), "GITHUB_")
+    )
+    error_message = "role_secret_name may contain only letters, numbers, and underscores; it cannot start with a number or GITHUB_."
   }
 }
 

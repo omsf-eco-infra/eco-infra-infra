@@ -8,6 +8,16 @@ output "role_arn" {
   value       = aws_iam_role.github_actions.arn
 }
 
+output "github_oidc_provider_arn" {
+  description = "ARN of the resolved account-wide GitHub Actions OIDC provider."
+  value       = local.github_oidc_provider_arn
+}
+
+output "role_secret_name" {
+  description = "Name of the GitHub Actions repository secret containing the role ARN."
+  value       = github_actions_secret.role_arn.secret_name
+}
+
 output "assume_role_policy_json" {
   description = "Rendered IAM trust policy JSON."
   value       = jsonencode(local.assume_role_policy)

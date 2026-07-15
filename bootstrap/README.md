@@ -3,6 +3,9 @@
 This root module creates the permissionless AWS IAM role assumed by the
 repository's tests workflow, configures the repository's GitHub OIDC subject
 template, and publishes the role ARN and AWS region as GitHub Actions secrets.
+The role module owns OIDC provider discovery and role-secret publication;
+bootstrap supplies repository-specific defaults and continues to own the
+region secret.
 
 ## Account architecture
 
@@ -83,7 +86,9 @@ tofu -chdir=bootstrap apply /tmp/eco-infra-infra-bootstrap.tfplan
 ```
 
 Override `github_repository` during the plan if applying this bootstrap to a
-repository other than `omsf-eco-infra/eco-infra-infra`.
+repository other than `omsf-eco-infra/eco-infra-infra`. Override `role_name` or
+`role_secret_name` to replace the defaults `eco-infra-infra-tests` and
+`AWS_GHA_TEST_ROLE_ARN`.
 
 The AWS credentials used for the apply must be able to read the account OIDC
 provider and manage the test IAM role. Configure the GitHub provider with a

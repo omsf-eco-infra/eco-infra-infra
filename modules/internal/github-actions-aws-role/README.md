@@ -2,7 +2,8 @@
 
 Creates an AWS IAM role that only explicitly configured GitHub Actions caller
 workflows can assume. The module also attaches caller-supplied inline and
-managed IAM policies.
+managed IAM policies, discovers the account-wide GitHub OIDC provider when its
+ARN is omitted, and publishes the role ARN as a repository Actions secret.
 
 This is an internal building block. It expects the repository to use the OIDC
 subject template managed by
@@ -15,9 +16,9 @@ containing `repo`, `context`, and `workflow_ref`.
 module "deploy_role" {
   source = "github.com/omsf-eco-infra/eco-infra-infra//modules/internal/github-actions-aws-role"
 
-  role_name                = "example-deployer"
-  github_oidc_provider_arn = module.github_oidc.github_oidc_provider_arn
-  github_repository        = "example-org/example-repo"
+  role_name         = "example-deployer"
+  role_secret_name  = "AWS_DEPLOY_ROLE_ARN"
+  github_repository = "example-org/example-repo"
 
   trusted_workflows = [
     {
@@ -59,8 +60,15 @@ module "repository_oidc" {
 }
 ```
 
-The GitHub provider passed to `repository_oidc` must be configured for
-`example-org`. Keep repository secrets and variables in the calling module.
+The AWS provider must select the account containing the role and GitHub OIDC
+provider. The GitHub provider passed to this module and `repository_oidc` must
+be configured for `example-org`. Set `github_oidc_provider_arn` to select a
+specific provider; otherwise the module looks up
+`https://token.actions.githubusercontent.com` in the selected AWS account.
+
+The role secret is created after the IAM role, but it can be created in
+parallel with the separate repository OIDC customization. A workflow started
+during that apply can fail until customization is complete.
 
 ## Workflow trust entries
 
@@ -97,7 +105,8 @@ workflow refs are meaningful and should be reviewed carefully.
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `role_name` | `string` | required | IAM role name |
-| `github_oidc_provider_arn` | `string` | required | Account GitHub OIDC provider ARN |
+| `role_secret_name` | `string` | required | Repository Actions secret that receives the role ARN |
+| `github_oidc_provider_arn` | `string` | `null` | Optional account GitHub OIDC provider ARN; discovered by URL when omitted |
 | `github_repository` | `string` | required | Repository in `owner/repo` form |
 | `trusted_workflows` | `list(object)` | required | Exact allowed workflow combinations; workflow refs may use context defaults |
 | `role_description` | `string` | workflow-role description | IAM role description |
@@ -111,6 +120,7 @@ workflow refs are meaningful and should be reviewed carefully.
 ## Outputs
 
 - `role_name` and `role_arn`
+- `github_oidc_provider_arn` and `role_secret_name`
 - `assume_role_policy_json`
 - `oidc_subjects`
 - `repository_oidc_configuration`: non-sensitive readiness contract for the
@@ -147,4 +157,4 @@ workflow refs are meaningful and should be reviewed carefully.
 - **website-backend:** continue using `modules/github-oidc` for the account
   provider, pass the sandbox document through `inline_policies`, and use
   separate main-branch and pull-request trust entries for `terraform.yaml`.
-  GitHub secrets remain in the bootstrap wrapper.
+  Pass the existing role-secret name to this module.

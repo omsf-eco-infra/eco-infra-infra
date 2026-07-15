@@ -1,6 +1,6 @@
 output "github_oidc_provider_arn" {
   description = "ARN of the account-wide GitHub Actions OIDC provider."
-  value       = data.aws_iam_openid_connect_provider.github.arn
+  value       = module.test_role.github_oidc_provider_arn
 }
 
 output "test_role_name" {

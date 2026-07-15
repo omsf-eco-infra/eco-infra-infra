@@ -13,6 +13,13 @@ override_resource {
   }
 }
 
+override_data {
+  target = module.role.data.aws_iam_openid_connect_provider.github_by_arn
+  values = {
+    client_id_list = ["sts.amazonaws.com"]
+  }
+}
+
 run "role_to_repository_contract" {
   command = plan
 

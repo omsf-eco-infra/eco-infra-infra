@@ -2,13 +2,32 @@ mock_provider "aws" {
   alias = "mock"
 }
 
+mock_provider "github" {
+  alias = "mock"
+}
+
+override_data {
+  target = data.aws_iam_openid_connect_provider.github_by_url
+  values = {
+    arn            = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+    client_id_list = ["sts.amazonaws.com"]
+  }
+}
+
+override_resource {
+  target = aws_iam_role.github_actions
+  values = {
+    arn = "arn:aws:iam::123456789012:role/example-github-actions"
+  }
+}
+
 variables {
-  role_name                = "example-github-actions"
-  role_description         = "Example workflow role"
-  max_session_duration     = 7200
-  force_detach_policies    = true
-  github_oidc_provider_arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
-  github_repository        = "example-org/example-repo"
+  role_name             = "example-github-actions"
+  role_description      = "Example workflow role"
+  max_session_duration  = 7200
+  force_detach_policies = true
+  github_repository     = "example-org/example-repo"
+  role_secret_name      = "AWS_EXAMPLE_ROLE_ARN"
 
   trusted_workflows = [
     {
@@ -70,7 +89,8 @@ variables {
 run "role_configuration" {
   command = plan
   providers = {
-    aws = aws.mock
+    aws    = aws.mock
+    github = github.mock
   }
 
   plan_options {
@@ -90,6 +110,26 @@ run "role_configuration" {
   assert {
     condition     = aws_iam_role.github_actions.force_detach_policies
     error_message = "The role should preserve force_detach_policies."
+  }
+
+  assert {
+    condition     = output.github_oidc_provider_arn == "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+    error_message = "The module should discover and expose the GitHub OIDC provider ARN."
+  }
+
+  assert {
+    condition     = github_actions_secret.role_arn.repository == "example-repo"
+    error_message = "The role secret should be created in the configured repository."
+  }
+
+  assert {
+    condition     = github_actions_secret.role_arn.secret_name == "AWS_EXAMPLE_ROLE_ARN"
+    error_message = "The role secret should use the requested name."
+  }
+
+  assert {
+    condition     = github_actions_secret.role_arn.value == "arn:aws:iam::123456789012:role/example-github-actions"
+    error_message = "The role secret should contain the role ARN."
   }
 
   assert {
@@ -129,10 +169,35 @@ run "role_configuration" {
   }
 }
 
+run "explicit_oidc_provider_arn" {
+  command = plan
+  providers = {
+    aws    = aws.mock
+    github = github.mock
+  }
+
+  variables {
+    github_oidc_provider_arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+  }
+
+  override_data {
+    target = data.aws_iam_openid_connect_provider.github_by_arn
+    values = {
+      client_id_list = ["sts.amazonaws.com"]
+    }
+  }
+
+  assert {
+    condition     = output.github_oidc_provider_arn == var.github_oidc_provider_arn
+    error_message = "An explicit GitHub OIDC provider ARN should be preserved."
+  }
+}
+
 run "reject_invalid_repository" {
   command = plan
   providers = {
-    aws = aws.mock
+    aws    = aws.mock
+    github = github.mock
   }
 
   variables {
@@ -145,7 +210,8 @@ run "reject_invalid_repository" {
 run "reject_empty_workflows" {
   command = plan
   providers = {
-    aws = aws.mock
+    aws    = aws.mock
+    github = github.mock
   }
 
   variables {
@@ -158,7 +224,8 @@ run "reject_empty_workflows" {
 run "reject_invalid_context" {
   command = plan
   providers = {
-    aws = aws.mock
+    aws    = aws.mock
+    github = github.mock
   }
 
   variables {
@@ -177,7 +244,8 @@ run "reject_invalid_context" {
 run "reject_invalid_workflow_filename" {
   command = plan
   providers = {
-    aws = aws.mock
+    aws    = aws.mock
+    github = github.mock
   }
 
   variables {
@@ -197,7 +265,8 @@ run "reject_invalid_workflow_filename" {
 run "reject_invalid_workflow_ref" {
   command = plan
   providers = {
-    aws = aws.mock
+    aws    = aws.mock
+    github = github.mock
   }
 
   variables {
@@ -217,7 +286,8 @@ run "reject_invalid_workflow_ref" {
 run "reject_environment_without_workflow_ref" {
   command = plan
   providers = {
-    aws = aws.mock
+    aws    = aws.mock
+    github = github.mock
   }
 
   variables {
@@ -236,7 +306,8 @@ run "reject_environment_without_workflow_ref" {
 run "reject_malformed_inline_policy" {
   command = plan
   providers = {
-    aws = aws.mock
+    aws    = aws.mock
+    github = github.mock
   }
 
   variables {
@@ -251,7 +322,8 @@ run "reject_malformed_inline_policy" {
 run "reject_invalid_session_duration" {
   command = plan
   providers = {
-    aws = aws.mock
+    aws    = aws.mock
+    github = github.mock
   }
 
   variables {
@@ -259,4 +331,18 @@ run "reject_invalid_session_duration" {
   }
 
   expect_failures = [var.max_session_duration]
+}
+
+run "reject_invalid_role_secret_name" {
+  command = plan
+  providers = {
+    aws    = aws.mock
+    github = github.mock
+  }
+
+  variables {
+    role_secret_name = "GITHUB_ROLE_ARN"
+  }
+
+  expect_failures = [var.role_secret_name]
 }
