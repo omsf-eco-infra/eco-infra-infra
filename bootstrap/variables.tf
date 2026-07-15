@@ -28,7 +28,7 @@ variable "github_oidc_provider_arn" {
   validation {
     condition = (
       var.github_oidc_provider_arn == null ||
-      can(regex(":iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$", var.github_oidc_provider_arn))
+      can(regex("^arn:[^:]+:iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$", var.github_oidc_provider_arn))
     )
     error_message = "github_oidc_provider_arn must identify token.actions.githubusercontent.com in an AWS account."
   }
