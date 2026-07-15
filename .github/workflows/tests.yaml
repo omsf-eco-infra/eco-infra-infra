@@ -1,0 +1,86 @@
+name: Tofu Tests
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/tests.yaml"
+      - "bootstrap/**"
+      - "deploy-permissions/**"
+      - "modules/**"
+  push:
+    paths:
+      - ".github/workflows/tests.yaml"
+      - "bootstrap/**"
+      - "deploy-permissions/**"
+      - "modules/**"
+  workflow_dispatch:
+
+env:
+  TF_INPUT: "0"
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  tofu-tests:
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ matrix.working_directory }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: bootstrap
+            working_directory: bootstrap
+          - name: github-actions-aws-role
+            working_directory: modules/internal/github-actions-aws-role
+          - name: repo-oidc-customization
+            working_directory: modules/internal/repo-oidc-customization
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_wrapper: false
+
+      - name: Initialize module
+        env:
+          TF_DATA_DIR: ${{ runner.temp }}/${{ matrix.name }}
+        run: tofu init -backend=false -no-color
+
+      - name: Run module tests
+        env:
+          TF_DATA_DIR: ${{ runner.temp }}/${{ matrix.name }}
+        run: tofu test -no-color
+
+  aws-oidc-smoke:
+    needs: tofu-tests
+    if: >-
+      success() && (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      )
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GHA_TEST_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: eco-infra-infra-tests-${{ github.run_id }}
+
+      - name: Verify assumed role
+        run: aws sts get-caller-identity
