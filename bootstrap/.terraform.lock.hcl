@@ -21,7 +21,7 @@ provider "registry.opentofu.org/hashicorp/aws" {
 
 provider "registry.opentofu.org/integrations/github" {
   version     = "6.13.0"
-  constraints = ">= 6.0"
+  constraints = ">= 6.0.0"
   hashes = [
     "h1:Mug81HyUTKKMngXMOtBxuQ8ge3dVnzt9tGcF9SxLcVE=",
     "zh:0ab29fc21699f34345cf0bbbe44745fd1b143b7c73b410c1dc4abe05ffad0a84",
