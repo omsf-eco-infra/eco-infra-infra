@@ -23,3 +23,6 @@ A few of our modules are intended to be used directly by end-users, rather than 
 ### Building Block Modules
 
 These modules are intended to be used as building blocks for other tools, and are likely to be reused across many projects.
+
+* `internal/github-actions-aws-role`: A workflow-scoped AWS IAM role for GitHub Actions, with caller-provided policies.
+* `internal/repo-oidc-customization`: Repository-wide GitHub OIDC subject customization coordinated across all of a repository's AWS roles.
