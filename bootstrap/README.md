@@ -74,13 +74,13 @@ aws sts get-caller-identity
 export GITHUB_TOKEN=<github-token>
 ```
 
-The S3 backend is intentionally configured at initialization time so account
-and state-location details are not committed to the repository:
+The S3 backend has defaults in `bootstrap/providers.tf`, but you can override the
+bucket/key/region at initialization time:
 
 ```console
 tofu -chdir=bootstrap init \
   -backend-config="bucket=<state-bucket>" \
-  -backend-config="key=eco-infra-infra/bootstrap/terraform.tfstate" \
+  -backend-config="key=eco-infra-infra-tests/bootstrap/terraform.tfstate" \
   -backend-config="region=us-east-1" \
   -backend-config="use_lockfile=true"
 tofu -chdir=bootstrap plan -out=/tmp/eco-infra-infra-bootstrap.tfplan
