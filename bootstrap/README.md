@@ -7,6 +7,8 @@ The role module owns OIDC provider discovery and role-secret publication;
 bootstrap supplies repository-specific defaults and continues to own the
 region secret.
 
+This is intended to provide the infrastructure that allows us to run live tests of the repository's reusable modules. It is not intended to be reused by end users (unless you are setting it up for a fork of this repo).
+
 ## Account architecture
 
 The `eco-infra-infra-tests` role belongs in the root AWS account. GitHub
