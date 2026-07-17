@@ -148,7 +148,7 @@ run "role_configuration" {
   }
 
   assert {
-    condition     = aws_iam_role_policy.inline["deploy"].role == aws_iam_role.github_actions.id
+    condition     = aws_iam_role_policy.inline["deploy"].role == aws_iam_role.github_actions.name
     error_message = "Inline policies should be attached to the managed role."
   }
 
