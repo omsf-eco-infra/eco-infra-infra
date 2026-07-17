@@ -46,30 +46,21 @@ jobs:
         with:
           args: -color
 
-  tofu-tests:
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+  fast-tests:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         shell: bash
-        working-directory: ${{ matrix.working_directory }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: bootstrap
-            working_directory: bootstrap
-          - name: github-oidc
-            working_directory: modules/github-oidc
-          - name: github-actions-aws-role
-            working_directory: modules/internal/github-actions-aws-role
-          - name: repo-oidc-customization
-            working_directory: modules/internal/repo-oidc-customization
-          - name: tfstate-aws-backend
-            working_directory: modules/tfstate-aws-backend
+    env:
+      MODULE_TEST_DIRECTORIES: |
+        bootstrap
+        modules/github-oidc
+        modules/internal/github-actions-aws-role
+        modules/internal/repo-oidc-customization
+        modules/tfstate-aws-backend
 
     steps:
       - name: Check out repository
@@ -80,22 +71,36 @@ jobs:
         with:
           tofu_wrapper: false
 
-      - name: Initialize module
+      - name: Run fast module tests
         env:
-          TF_DATA_DIR: ${{ runner.temp }}/${{ matrix.name }}
-        run: tofu init -backend=false -no-color
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tofu-plugin-cache
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          status=0
 
-      - name: Run module tests
-        env:
-          TF_DATA_DIR: ${{ runner.temp }}/${{ matrix.name }}
-        run: tofu test -no-color
+          while IFS= read -r module; do
+            test -n "$module" || continue
+            echo "::group::$module"
+
+            data_dir="${RUNNER_TEMP}/${module//\//-}"
+            if ! TF_DATA_DIR="$data_dir" tofu -chdir="$module" init -backend=false -no-color; then
+              status=1
+            elif ! TF_DATA_DIR="$data_dir" tofu -chdir="$module" test -no-color; then
+              status=1
+            fi
+
+            echo "::endgroup::"
+          done <<< "$MODULE_TEST_DIRECTORIES"
+
+          exit "$status"
 
   aws-oidc-smoke:
-    needs: tofu-tests
+    needs: fast-tests
     if: >-
       success() && (
         (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-        github.event_name == 'pull_request' ||
+        (github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository) ||
         (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
       )
     runs-on: ubuntu-latest
