@@ -19,7 +19,9 @@ which is AWS's preferred modern behavior.
 
 ## Inputs
 
-This module has no inputs.
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `prevent_destroy` | `bool` | `true` | Protect the provider from deletion; set to `false` only for disposable fixtures |
 
 ## Outputs
 
@@ -51,6 +53,21 @@ module "github_oidc" {
 After creation, pass `module.github_oidc.github_oidc_provider_arn` into
 downstream modules or IAM role definitions that trust GitHub Actions.
 
+The provider is protected from destruction by default. Disposable sandbox
+fixtures can opt into normal destruction when they are first created:
+
+```hcl
+module "github_oidc" {
+  source = "github.com/omsf-eco-infra/eco-infra-infra//modules/github-oidc"
+
+  prevent_destroy = false
+}
+```
+
+OpenTofu requires `lifecycle.prevent_destroy` to be a literal value. The module
+therefore uses separate protected and destroyable resource addresses, selected
+when the provider is created.
+
 The module currently configures these GitHub thumbprints:
 
 - `6938fd4d98bab03faadb97b34396831e3780aea1`
@@ -59,6 +76,8 @@ The module currently configures these GitHub thumbprints:
 ## Security Notes
 
 - This module creates only the identity provider.
+- Destruction protection defaults to enabled. Disable it only in a dedicated
+  sandbox where automated cleanup is required.
 - Downstream IAM roles should still restrict GitHub OIDC claims such as
   `token.actions.githubusercontent.com:sub` so only intended repositories,
   branches, environments, or workflows can assume the role.

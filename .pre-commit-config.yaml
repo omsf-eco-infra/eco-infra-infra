@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: tofu-fmt
+        name: tofu fmt
+        entry: tofu fmt
+        language: system
+        files: '(\.tf|\.tfvars|\.tftest\.hcl)$'

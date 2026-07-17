@@ -113,6 +113,16 @@ run "role_configuration" {
   }
 
   assert {
+    condition     = aws_iam_role.github_actions.description == "Example workflow role"
+    error_message = "The role should use the requested description."
+  }
+
+  assert {
+    condition     = aws_iam_role.github_actions.tags == tomap(var.tags)
+    error_message = "The role should use the requested tags."
+  }
+
+  assert {
     condition     = output.github_oidc_provider_arn == "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
     error_message = "The module should discover and expose the GitHub OIDC provider ARN."
   }
@@ -138,8 +148,29 @@ run "role_configuration" {
   }
 
   assert {
+    condition     = aws_iam_role_policy.inline["deploy"].role == aws_iam_role.github_actions.name
+    error_message = "Inline policies should be attached to the managed role."
+  }
+
+  assert {
+    condition = (
+      jsondecode(aws_iam_role_policy.inline["deploy"].policy).Version == "2012-10-17" &&
+      length(jsondecode(aws_iam_role_policy.inline["deploy"].policy).Statement) == 1 &&
+      jsondecode(aws_iam_role_policy.inline["deploy"].policy).Statement[0].Effect == "Allow" &&
+      tolist(jsondecode(aws_iam_role_policy.inline["deploy"].policy).Statement[0].Action) == tolist(["s3:ListAllMyBuckets"]) &&
+      jsondecode(aws_iam_role_policy.inline["deploy"].policy).Statement[0].Resource == "*"
+    )
+    error_message = "Inline policy resources should preserve the complete requested policy document."
+  }
+
+  assert {
     condition     = aws_iam_role_policy_attachment.managed["readonly"].policy_arn == "arn:aws:iam::123456789012:policy/example-readonly"
     error_message = "Managed policy map entries should create stable attachments."
+  }
+
+  assert {
+    condition     = aws_iam_role_policy_attachment.managed["readonly"].role == aws_iam_role.github_actions.name
+    error_message = "Managed policies should be attached to the managed role."
   }
 
   assert {
@@ -164,7 +195,32 @@ run "role_configuration" {
   }
 
   assert {
-    condition     = !strcontains(output.assume_role_policy_json, "job_workflow_ref")
+    condition     = jsondecode(aws_iam_role.github_actions.assume_role_policy) == jsondecode(output.assume_role_policy_json)
+    error_message = "The managed role and policy output should use the same trust policy document."
+  }
+
+  assert {
+    condition = (
+      jsondecode(aws_iam_role.github_actions.assume_role_policy).Version == "2012-10-17" &&
+      length(jsondecode(aws_iam_role.github_actions.assume_role_policy).Statement) == 1 &&
+      jsondecode(aws_iam_role.github_actions.assume_role_policy).Statement[0].Sid == "GitHubActionsAssumeRole" &&
+      jsondecode(aws_iam_role.github_actions.assume_role_policy).Statement[0].Effect == "Allow" &&
+      jsondecode(aws_iam_role.github_actions.assume_role_policy).Statement[0].Action == "sts:AssumeRoleWithWebIdentity"
+    )
+    error_message = "The trust policy should contain one allow statement for GitHub OIDC role assumption."
+  }
+
+  assert {
+    condition = (
+      jsondecode(aws_iam_role.github_actions.assume_role_policy).Statement[0].Principal.Federated == output.github_oidc_provider_arn &&
+      jsondecode(aws_iam_role.github_actions.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:aud"] == "sts.amazonaws.com" &&
+      tolist(jsondecode(aws_iam_role.github_actions.assume_role_policy).Statement[0].Condition.StringLike["token.actions.githubusercontent.com:sub"]) == tolist(output.oidc_subjects)
+    )
+    error_message = "The trust policy should restrict the provider, audience, and subjects to the configured GitHub workflows."
+  }
+
+  assert {
+    condition     = !strcontains(aws_iam_role.github_actions.assume_role_policy, "job_workflow_ref")
     error_message = "The trust policy must not use AWS's unsupported independent job_workflow_ref condition."
   }
 }

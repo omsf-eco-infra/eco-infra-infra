@@ -37,3 +37,6 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+# pixi environments
+.pixi/*
+!.pixi/config.toml

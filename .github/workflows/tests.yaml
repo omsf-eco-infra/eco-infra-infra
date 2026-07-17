@@ -3,12 +3,16 @@ name: Tofu Tests
 on:
   pull_request:
     paths:
+      - ".pre-commit-config.yaml"
       - ".github/workflows/tests.yaml"
       - "bootstrap/**"
       - "deploy-permissions/**"
       - "modules/**"
   push:
+    branches:
+      - main
     paths:
+      - ".pre-commit-config.yaml"
       - ".github/workflows/tests.yaml"
       - "bootstrap/**"
       - "deploy-permissions/**"
@@ -20,26 +24,10 @@ env:
   TF_IN_AUTOMATION: "true"
 
 jobs:
-  tofu-tests:
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+  static-checks:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-        working-directory: ${{ matrix.working_directory }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: bootstrap
-            working_directory: bootstrap
-          - name: github-actions-aws-role
-            working_directory: modules/internal/github-actions-aws-role
-          - name: repo-oidc-customization
-            working_directory: modules/internal/repo-oidc-customization
+    permissions:
+      contents: read
 
     steps:
       - name: Check out repository
@@ -50,22 +38,91 @@ jobs:
         with:
           tofu_wrapper: false
 
-      - name: Initialize module
-        env:
-          TF_DATA_DIR: ${{ runner.temp }}/${{ matrix.name }}
-        run: tofu init -backend=false -no-color
+      - name: Check OpenTofu formatting
+        run: tofu fmt -check -recursive
 
-      - name: Run module tests
+      - name: Lint GitHub Actions workflows
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+
+  fast-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      MODULE_TEST_DIRECTORIES: |
+        bootstrap
+        modules/github-oidc
+        modules/internal/github-actions-aws-role
+        modules/internal/repo-oidc-customization
+        modules/tfstate-aws-backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_wrapper: false
+
+      - name: Run fast module tests
         env:
-          TF_DATA_DIR: ${{ runner.temp }}/${{ matrix.name }}
-        run: tofu test -no-color
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tofu-plugin-cache
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          results=()
+          failed_modules=()
+
+          while IFS= read -r module; do
+            test -n "$module" || continue
+            echo "::group::$module"
+
+            data_dir="${RUNNER_TEMP}/${module//\//-}"
+            if ! TF_DATA_DIR="$data_dir" tofu -chdir="$module" init -backend=false -no-color; then
+              result="Initialization failed"
+              failed_modules+=("$module")
+            elif ! TF_DATA_DIR="$data_dir" tofu -chdir="$module" test -no-color; then
+              result="Tests failed"
+              failed_modules+=("$module")
+            else
+              result="Passed"
+            fi
+
+            results+=("$module|$result")
+            echo "::endgroup::"
+          done <<< "$MODULE_TEST_DIRECTORIES"
+
+          {
+            echo "## Fast module tests"
+            echo
+            echo "| Tier | Module | Result |"
+            echo "| --- | --- | --- |"
+            for entry in "${results[@]}"; do
+              IFS="|" read -r module result <<< "$entry"
+              echo "| Fast mocked | \`$module\` | $result |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if ((${#failed_modules[@]} > 0)); then
+            failed_list=$(printf ", %s" "${failed_modules[@]}")
+            failed_list=${failed_list:2}
+            echo "::error title=Fast mocked tests failed::$failed_list"
+            exit 1
+          fi
 
   aws-oidc-smoke:
-    needs: tofu-tests
+    needs: [static-checks, fast-tests]
     if: >-
       success() && (
         (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-        github.event_name == 'pull_request' ||
+        (github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository) ||
         (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
       )
     runs-on: ubuntu-latest
