@@ -76,7 +76,8 @@ jobs:
           TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tofu-plugin-cache
         run: |
           mkdir -p "$TF_PLUGIN_CACHE_DIR"
-          status=0
+          results=()
+          failed_modules=()
 
           while IFS= read -r module; do
             test -n "$module" || continue
@@ -84,15 +85,36 @@ jobs:
 
             data_dir="${RUNNER_TEMP}/${module//\//-}"
             if ! TF_DATA_DIR="$data_dir" tofu -chdir="$module" init -backend=false -no-color; then
-              status=1
+              result="Initialization failed"
+              failed_modules+=("$module")
             elif ! TF_DATA_DIR="$data_dir" tofu -chdir="$module" test -no-color; then
-              status=1
+              result="Tests failed"
+              failed_modules+=("$module")
+            else
+              result="Passed"
             fi
 
+            results+=("$module|$result")
             echo "::endgroup::"
           done <<< "$MODULE_TEST_DIRECTORIES"
 
-          exit "$status"
+          {
+            echo "## Fast module tests"
+            echo
+            echo "| Tier | Module | Result |"
+            echo "| --- | --- | --- |"
+            for entry in "${results[@]}"; do
+              IFS="|" read -r module result <<< "$entry"
+              echo "| Fast mocked | \`$module\` | $result |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if ((${#failed_modules[@]} > 0)); then
+            failed_list=$(printf ", %s" "${failed_modules[@]}")
+            failed_list=${failed_list:2}
+            echo "::error title=Fast mocked tests failed::$failed_list"
+            exit 1
+          fi
 
   aws-oidc-smoke:
     needs: fast-tests
