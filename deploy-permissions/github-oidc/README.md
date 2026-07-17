@@ -24,6 +24,9 @@ the account's GitHub Actions OIDC provider at:
 
 - `arn:${partition}:iam::${account_id}:oidc-provider/token.actions.githubusercontent.com`
 
+Since this module will only deploy into the user's account, the ARN can be
+derived from the current account ID and partition.
+
 Lifecycle access is split as follows:
 
 - `plan`: `iam:ListOpenIDConnectProviders` on `*` plus
