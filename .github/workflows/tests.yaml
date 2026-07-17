@@ -62,10 +62,14 @@ jobs:
         include:
           - name: bootstrap
             working_directory: bootstrap
+          - name: github-oidc
+            working_directory: modules/github-oidc
           - name: github-actions-aws-role
             working_directory: modules/internal/github-actions-aws-role
           - name: repo-oidc-customization
             working_directory: modules/internal/repo-oidc-customization
+          - name: tfstate-aws-backend
+            working_directory: modules/tfstate-aws-backend
 
     steps:
       - name: Check out repository
