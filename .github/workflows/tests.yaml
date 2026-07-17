@@ -3,6 +3,7 @@ name: Tofu Tests
 on:
   pull_request:
     paths:
+      - ".pre-commit-config.yaml"
       - ".github/workflows/tests.yaml"
       - "bootstrap/**"
       - "deploy-permissions/**"
@@ -11,6 +12,7 @@ on:
     branches:
       - main
     paths:
+      - ".pre-commit-config.yaml"
       - ".github/workflows/tests.yaml"
       - "bootstrap/**"
       - "deploy-permissions/**"
@@ -22,6 +24,28 @@ env:
   TF_IN_AUTOMATION: "true"
 
 jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_wrapper: false
+
+      - name: Check OpenTofu formatting
+        run: tofu fmt -check -recursive
+
+      - name: Lint GitHub Actions workflows
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+
   tofu-tests:
     if: >-
       github.event_name != 'pull_request' ||
