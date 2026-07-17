@@ -1,0 +1,12 @@
+[workspace]
+authors = ["David W.H. Swenson <david.swenson@omsf.io>"]
+channels = ["conda-forge"]
+name = "eco-infra-infra"
+platforms = ["osx-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+pre-commit = ">=4.6.0,<5"
+opentofu = ">=1.12.4,<2"
