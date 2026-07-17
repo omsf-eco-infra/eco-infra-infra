@@ -122,12 +122,17 @@ run "force_detach_contract" {
 
   assert {
     condition = (
-      !can(one([
+      length([
         for statement in jsondecode(output.permissions_destroy).Statement : statement
         if statement.Sid == "GitHubActionsManagedPolicyForceDetach"
-      ]).Condition)
+      ]) == 1 &&
+      alltrue([
+        for statement in jsondecode(output.permissions_destroy).Statement :
+        !can(statement.Condition)
+        if statement.Sid == "GitHubActionsManagedPolicyForceDetach"
+      ])
     )
-    error_message = "The infrastructure and deploy-permissions modules should enable force detach together."
+    error_message = "Force detach should emit exactly one unrestricted managed-policy detach statement."
   }
 }
 
