@@ -65,10 +65,8 @@ module "github_oidc" {
 ```
 
 OpenTofu requires `lifecycle.prevent_destroy` to be a literal value. The module
-therefore uses separate protected and destroyable resource addresses. Treat
-`prevent_destroy` as immutable after creation. Changing it for an existing
-provider requires moving the resource in state before planning; otherwise AWS
-will reject an attempt to create a second provider with the same issuer URL.
+therefore uses separate protected and destroyable resource addresses, selected
+when the provider is created.
 
 The module currently configures these GitHub thumbprints:
 

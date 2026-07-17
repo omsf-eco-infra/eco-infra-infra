@@ -29,8 +29,3 @@ resource "aws_iam_openid_connect_provider" "github_destroyable" {
   client_id_list  = local.github_oidc_client_ids
   thumbprint_list = local.github_oidc_thumbprint_list
 }
-
-moved {
-  from = aws_iam_openid_connect_provider.github
-  to   = aws_iam_openid_connect_provider.github[0]
-}

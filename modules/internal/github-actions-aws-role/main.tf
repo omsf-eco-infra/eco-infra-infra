@@ -85,7 +85,7 @@ resource "aws_iam_role_policy" "inline" {
   for_each = var.inline_policies
 
   name   = each.key
-  role   = aws_iam_role.github_actions.id
+  role   = aws_iam_role.github_actions.name
   policy = each.value
 }
 
