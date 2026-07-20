@@ -10,6 +10,9 @@ fi
 provider_profile=$1
 script_directory=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repository_root=$(cd -- "$script_directory/../.." && pwd)
+provider_generator="$repository_root/devtools/generate_compatibility_providers.py"
+python_executable=${PYTHON:-python3}
+tofu_inspector=${TOFU_INSPECT:-tofu}
 work_root=$(mktemp -d "${TMPDIR:-/tmp}/eco-infra-compatibility.XXXXXX")
 work_repository="$work_root/repository"
 plugin_cache_directory=${TF_PLUGIN_CACHE_DIR:-"$work_root/plugin-cache"}
@@ -75,7 +78,15 @@ for fixture in "${fixtures[@]}"; do
 
   mkdir -p "$working_fixture" "$data_directory"
   cp "$source_fixture/main.tf" "$source_fixture/versions.tofu" "$working_fixture/"
-  cp "$script_directory/profiles/$provider_profile/$fixture.tf" "$working_fixture/providers.tf"
+
+  if ! "$python_executable" "$provider_generator" \
+    --fixture "$source_fixture" \
+    --profile "$provider_profile" \
+    --output "$working_fixture/providers.tf" \
+    --tofu "$tofu_inspector"; then
+    echo "::endgroup::"
+    fail_fixture "$fixture" "Provider profile generation"
+  fi
 
   init_arguments=(-backend=false -input=false -no-color)
   if [[ "$provider_profile" == "latest" ]]; then

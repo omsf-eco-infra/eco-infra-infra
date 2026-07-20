@@ -6,7 +6,10 @@ platforms = ["osx-64"]
 version = "0.1.0"
 
 [tasks]
+test-devtools = "python -m pytest devtools/tests"
 
 [dependencies]
+python = ">=3.12,<3.15"
+pytest = ">=9.0,<10"
 pre-commit = ">=4.6.0,<5"
 opentofu = ">=1.12.4,<2"
