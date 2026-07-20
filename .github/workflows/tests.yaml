@@ -8,6 +8,7 @@ on:
       - "bootstrap/**"
       - "deploy-permissions/**"
       - "modules/**"
+      - "tests/compatibility/**"
       - "tests/contracts/**"
   push:
     branches:
@@ -18,6 +19,7 @@ on:
       - "bootstrap/**"
       - "deploy-permissions/**"
       - "modules/**"
+      - "tests/compatibility/**"
       - "tests/contracts/**"
   workflow_dispatch:
 
@@ -124,6 +126,89 @@ jobs:
             echo "::error title=Fast mocked tests failed::$failed_list"
             exit 1
           fi
+
+  compatibility-endpoints:
+    name: Compatibility (${{ matrix.tofu_label }}, ${{ matrix.provider_profile }} providers)
+    needs: static-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tofu_label: minimum OpenTofu
+            tofu_version: 1.10.0
+            provider_profile: minimum
+          - tofu_label: latest OpenTofu
+            tofu_version: latest
+            provider_profile: latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ matrix.tofu_version }}
+          tofu_wrapper: false
+
+      - name: Record OpenTofu version
+        run: tofu version
+
+      - name: Validate compatibility consumers
+        env:
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tofu-plugin-cache
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          tests/compatibility/run.sh "${{ matrix.provider_profile }}"
+
+  compatibility-cross:
+    name: Compatibility (${{ matrix.tofu_label }}, ${{ matrix.provider_profile }} providers)
+    needs: static-checks
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tofu_label: minimum OpenTofu
+            tofu_version: 1.10.0
+            provider_profile: latest
+          - tofu_label: latest OpenTofu
+            tofu_version: latest
+            provider_profile: minimum
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ matrix.tofu_version }}
+          tofu_wrapper: false
+
+      - name: Record OpenTofu version
+        run: tofu version
+
+      - name: Validate compatibility consumers
+        env:
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tofu-plugin-cache
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          tests/compatibility/run.sh "${{ matrix.provider_profile }}"
 
   aws-oidc-smoke:
     needs: [static-checks, fast-tests]
