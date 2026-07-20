@@ -92,6 +92,9 @@ jobs:
             if ! TF_DATA_DIR="$data_dir" tofu -chdir="$module" init -backend=false -no-color; then
               result="Initialization failed"
               failed_modules+=("$module")
+            elif ! TF_DATA_DIR="$data_dir" tofu -chdir="$module" validate -no-color; then
+              result="Validation failed"
+              failed_modules+=("$module")
             elif ! TF_DATA_DIR="$data_dir" tofu -chdir="$module" test -no-color; then
               result="Tests failed"
               failed_modules+=("$module")
