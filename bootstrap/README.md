@@ -25,25 +25,31 @@ Future live tests will use a two-account design:
    root account.
 2. OpenTofu's S3 backend will use that root-account identity to read, write,
    and lock test state in a root-account state bucket.
-3. The AWS provider will use the root role to assume a separate deployment role
-   in the sandbox account.
-4. The sandbox deployment role will receive the generated permissions needed
-   to create and destroy test resources in the sandbox account.
+3. The AWS provider will use the root role to assume the persistent deployment
+   role for the fixture type being tested in the sandbox account.
+4. Each fixture deployment role will receive only the generated permissions
+   needed to create and destroy that fixture type in the sandbox account.
 
 The S3 backend and AWS provider authenticate independently. Live test roots
 will therefore configure the backend to use the workflow's ambient root-role
 credentials while configuring the AWS provider with an `assume_role` block for
-the sandbox deployment role. The sandbox role will not need access to the root
-state bucket.
+the appropriate fixture deployment role. Fixture roles will not need access to
+the root state bucket.
 
 When live tests are introduced, this bootstrap is expected to grow to:
 
-- create the sandbox deployment role;
-- allow only `eco-infra-infra-tests` to assume that role;
+- create one persistent sandbox deployment role for each live fixture type;
+- allow only `eco-infra-infra-tests` to assume those roles;
 - grant the root role access to the test-state bucket and permission to assume
-  the exact sandbox role; and
-- attach narrowly scoped policies from `deploy-permissions/` to the sandbox
-  role for the resources under test.
+  the exact, enumerated fixture-role ARNs; and
+- attach the matching `all` policy from `deploy-permissions/` to each fixture
+  role.
+
+Workflow runs will reuse the persistent role for their fixture type while
+keeping resource names and state isolated by pull request and run. Workflows
+will not create or destroy deployment roles dynamically; the root role will
+therefore need permission to assume the enumerated roles, but not permission to
+manage IAM roles in the sandbox account.
 
 The existing `deploy-permissions/tfstate-aws-backend` module manages permissions
 for deploying the bucket itself; it does not provide the runtime S3 object
@@ -97,9 +103,10 @@ provider and manage the test IAM role. Configure the GitHub provider with a
 token that can manage Actions secrets and the repository OIDC customization,
 for example through the `GITHUB_TOKEN` environment variable.
 
-The test role intentionally has no workload permissions. Add permissions from
-the matching modules under `deploy-permissions/` only when a CI test begins
-creating and destroying a narrowly scoped AWS fixture.
+The test role intentionally has no workload permissions. Add a persistent
+fixture role with permissions from the matching module under
+`deploy-permissions/` only when the live suite begins creating and destroying
+that fixture type.
 
 ## Enable the tests workflow
 
