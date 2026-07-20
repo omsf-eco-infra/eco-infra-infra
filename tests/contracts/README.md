@@ -71,3 +71,6 @@ tofu -chdir=tests/contracts/github-oidc test
 The fast-test workflow runs every committed contract root. Provider lock files
 created while running these reusable test roots locally are ignored and should
 not be committed.
+
+The separate [compatibility suite](../compatibility/README.md) validates minimal
+consumer roots at the supported OpenTofu and provider-version endpoints.

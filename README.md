@@ -26,3 +26,25 @@ These modules are intended to be used as building blocks for other tools, and ar
 
 * `internal/github-actions-aws-role`: A workflow-scoped AWS IAM role for GitHub Actions, with caller-provided policies.
 * `internal/repo-oidc-customization`: Repository-wide GitHub OIDC subject customization coordinated across all of a repository's AWS roles.
+
+## Compatibility policy
+
+Committed modules support OpenTofu 1.10.0 and newer. Continuous integration
+keeps 1.10.0 as the fixed minimum endpoint and resolves `latest` at job runtime
+for the current endpoint, so updating the current OpenTofu version does not
+require a repository commit.
+
+Provider compatibility is bounded by each module's `required_providers`
+constraints. The tested provider floors are:
+
+| Module | AWS provider | GitHub provider |
+| --- | --- | --- |
+| `github-oidc` | 4.0.0 (4.x) | Not used |
+| `tfstate-aws-backend` | 4.0.0 (4.x) | Not used |
+| `internal/github-actions-aws-role` | 4.2.0 (4.x) | 6.12.0 or newer |
+| `internal/repo-oidc-customization` | Not used | 5.14.0 or newer |
+
+See [the compatibility test documentation](tests/compatibility/README.md) for
+the consumer fixtures, local commands, exact provider profiles, and CI matrix.
+Raising the OpenTofu minimum, changing a provider major-version bound, or
+dropping a matrix combination is an intentional compatibility decision.
