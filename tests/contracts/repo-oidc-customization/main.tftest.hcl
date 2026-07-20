@@ -23,10 +23,6 @@ override_data {
 run "role_to_repository_contract" {
   command = plan
 
-  module {
-    source = "./tests/integration"
-  }
-
   providers = {
     aws    = aws.mock
     github = github.mock

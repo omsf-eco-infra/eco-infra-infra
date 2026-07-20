@@ -65,6 +65,7 @@ jobs:
         modules/tfstate-aws-backend
         tests/contracts/github-oidc
         tests/contracts/internal-github-actions-aws-role
+        tests/contracts/repo-oidc-customization
         tests/contracts/tfstate-aws-backend
 
     steps:

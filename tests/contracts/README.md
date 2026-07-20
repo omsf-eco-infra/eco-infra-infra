@@ -54,6 +54,11 @@ Modules that configure only a non-AWS provider do not need an AWS
 deploy-permissions companion. Their cross-module contracts may still be tested
 elsewhere when they publish values consumed by another module.
 
+The `repo-oidc-customization` contract composes the repository-wide GitHub OIDC
+claim customization with the AWS role module whose output configures it. It
+therefore verifies their shared public claim contract without adding an AWS
+deploy-permissions companion for the GitHub-only module.
+
 ## Running the tests
 
 Run a contract root in the same way as any other OpenTofu test root:
