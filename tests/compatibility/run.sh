@@ -26,12 +26,12 @@ mkdir -p "$work_repository/tests/compatibility/fixtures" "$plugin_cache_director
 ln -s "$repository_root/modules" "$work_repository/modules"
 ln -s "$repository_root/deploy-permissions" "$work_repository/deploy-permissions"
 
-fixtures=(
-  github-oidc
-  internal-github-actions-aws-role
-  repo-oidc-customization
-  tfstate-aws-backend
-)
+shopt -s nullglob
+fixture_directories=("$script_directory"/fixtures/*/)
+if ((${#fixture_directories[@]} == 0)); then
+  echo "No compatibility fixtures found under $script_directory/fixtures" >&2
+  exit 1
+fi
 
 tofu_version=$(tofu version | sed -n '1p')
 echo "$tofu_version"
@@ -69,10 +69,11 @@ fail_fixture() {
   exit 1
 }
 
-for fixture in "${fixtures[@]}"; do
+for source_fixture in "${fixture_directories[@]}"; do
+  source_fixture=${source_fixture%/}
+  fixture=${source_fixture##*/}
   echo "::group::$fixture ($provider_profile providers)"
 
-  source_fixture="$script_directory/fixtures/$fixture"
   working_fixture="$work_repository/tests/compatibility/fixtures/$fixture"
   data_directory="$work_root/data/$fixture"
 
