@@ -11,6 +11,9 @@ On the other hand, we hope this repository can be useful as part of our efforts 
 
 * `modules/`: This directory contains the reusable modules themselves.
 
+See [Adding Modules](ADDING_MODULES.md) for the required module structure,
+compatibility policy, test layers, and repository integration checklist.
+
 ## Modules
 
 ### End-User Modules
