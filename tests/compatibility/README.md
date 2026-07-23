@@ -19,20 +19,7 @@ currently tested.
 Each fixture commits an exact minimum-provider profile under
 `minimum/providers.tf`. The latest-compatible profile omits those root
 constraints and lets OpenTofu select the newest versions allowed by the child
-modules:
-
-| Fixture | Minimum providers | Latest-compatible providers |
-| --- | --- | --- |
-| `github-oidc` | AWS 4.0.0 | Newest AWS 4.x |
-| `tfstate-aws-backend` | AWS 4.0.0 | Newest AWS 4.x |
-| `internal-github-actions-aws-role` | AWS 4.2.0 and GitHub 6.12.0 | Newest AWS 4.x and newest GitHub 6.x or newer |
-| `repo-oidc-customization` | GitHub 5.14.0 | Newest GitHub 5.14.0 or newer |
-
-The role module's AWS floor is 4.2.0 because its OIDC provider data source is
-not available in AWS 4.0.0. Its GitHub floor is 6.12.0 because it uses the
-current `github_actions_secret.value` argument. Repository OIDC customization
-requires GitHub 5.14.0 because that is the first compatible provider schema for
-its resource. Other committed AWS modules retain their `~> 4.0` constraint.
+modules.
 
 The exact minimum profiles are reviewed compatibility-policy inputs. They must
 list every provider in the fixture's transitive module graph and remain
@@ -41,16 +28,9 @@ committed dependency lock file.
 
 ## Consumer fixtures
 
-The four roots cover:
-
-- GitHub's AWS OIDC provider composed with its deployment permissions;
-- the AWS state backend composed with its deployment permissions;
-- the GitHub Actions AWS role composed with its deployment permissions; and
-- repository OIDC customization by itself, allowing its GitHub provider floor
-  to be tested independently from the role module.
-
-CI discovers every fixture directory in both provider-profile matrix entries.
-The minimum-provider entry requires `minimum/providers.tf`, verifies that no
+Each fixture is a minimal external consumer of a supported module graph. CI
+discovers every fixture directory in both provider-profile matrix entries. The
+minimum-provider entry requires `minimum/providers.tf`, verifies that no
 `minimum_override.tf` already exists, and copies the profile to that ignored
 override filename. The latest-provider entry skips the copy. Both entries
 initialize with `-upgrade`, share a provider cache within the job, and run

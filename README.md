@@ -37,18 +37,8 @@ newer through conventional `versions.tf` files. Continuous integration
 currently tests OpenTofu only: it keeps 1.10.0 as the fixed minimum endpoint
 and resolves `latest` at job runtime for the current endpoint.
 
-Provider compatibility is bounded by each module's `required_providers`
-constraints. The tested provider floors are:
-
-| Module | AWS provider | GitHub provider |
-| --- | --- | --- |
-| `github-oidc` | 4.0.0 (4.x) | Not used |
-| `tfstate-aws-backend` | 4.0.0 (4.x) | Not used |
-| `internal/github-actions-aws-role` | 4.2.0 (4.x) | 6.12.0 or newer |
-| `internal/repo-oidc-customization` | Not used | 5.14.0 or newer |
-
 See [the compatibility test documentation](tests/compatibility/README.md) for
-the consumer fixtures, local commands, exact provider profiles, and CI
+the fixture structure, local commands, provider-profile behavior, and CI
 coverage. Terraform compatibility is intended but not currently exercised in
 CI. Raising the shared Terraform/OpenTofu minimum, changing a provider
 major-version bound, or dropping a compatibility profile is an intentional
