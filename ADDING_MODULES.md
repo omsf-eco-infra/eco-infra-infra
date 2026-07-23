@@ -159,22 +159,41 @@ terraform {
 }
 ```
 
-The compatibility runner autodiscovers fixture directories, so there is no
-fixture list to update in CI. If an existing fixture already covers the new
-module's provider graph, extend that fixture and its minimum profile instead of
-adding redundant coverage.
+The CI workflow autodiscovers fixture directories, so adding the fixture does
+not require a workflow edit. The minimum-provider matrix entry requires the
+committed exact profile and copies it into the fixture root as the ignored file
+`minimum_override.tf`; the latest-provider entry omits that override.
 
-Run both profiles locally:
+If an existing fixture already covers the new module's provider graph, extend
+that fixture and its minimum profile instead of adding redundant coverage.
+
+Run the minimum profile locally:
 
 ```console
-tests/compatibility/run.sh minimum
-tests/compatibility/run.sh latest
+fixture=tests/compatibility/fixtures/<name>
+cp "$fixture/minimum/providers.tf" "$fixture/minimum_override.tf"
+TF_DATA_DIR=/tmp/eco-infra-compatibility-minimum \
+  tofu -chdir="$fixture" init -backend=false -input=false
+TF_DATA_DIR=/tmp/eco-infra-compatibility-minimum \
+  tofu -chdir="$fixture" validate
+rm "$fixture/minimum_override.tf" "$fixture/.terraform.lock.hcl"
+```
+
+Then run the latest profile:
+
+```console
+fixture=tests/compatibility/fixtures/<name>
+TF_DATA_DIR=/tmp/eco-infra-compatibility-latest \
+  tofu -chdir="$fixture" init -backend=false -input=false -upgrade
+TF_DATA_DIR=/tmp/eco-infra-compatibility-latest \
+  tofu -chdir="$fixture" validate
+rm "$fixture/.terraform.lock.hcl"
 ```
 
 The minimum profile verifies exact provider floors. The latest profile omits
-the exact root constraints and uses `tofu init -upgrade` to select the newest
-versions allowed by the modules. Both profiles initialize and validate
-temporary consumer roots and discard their generated lock files.
+the exact root constraints and selects the newest versions allowed by the
+modules. Compatibility lock files and provider overrides are transient and
+must not be committed.
 
 CI runs both compatibility profiles with OpenTofu 1.10.0. The fast-test job
 provides the latest-OpenTofu/latest-provider behavioral endpoint.
@@ -187,9 +206,9 @@ Before opening the pull request:
    `deploy-permissions/README.md` documentation.
 2. Run `tofu fmt -check -recursive`.
 3. Run the new module-local and applicable contract tests.
-4. Run both compatibility profiles.
-5. Confirm the minimum-profile summary reports every intended exact provider
-   version.
+4. Run both compatibility profiles for the affected fixture.
+5. Confirm the minimum-profile initialization selects every intended exact
+   provider version.
 6. Run the repository pre-commit checks, including `actionlint`.
 7. Review any OpenTofu floor or provider upper-bound change as an explicit
    compatibility decision.

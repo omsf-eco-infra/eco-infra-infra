@@ -48,6 +48,7 @@ constraints. The tested provider floors are:
 | `internal/repo-oidc-customization` | Not used | 5.14.0 or newer |
 
 See [the compatibility test documentation](tests/compatibility/README.md) for
-the consumer fixtures, local commands, exact provider profiles, and CI matrix.
-Raising the OpenTofu minimum, changing a provider major-version bound, or
-dropping a matrix combination is an intentional compatibility decision.
+the consumer fixtures, local commands, exact provider profiles, and CI
+coverage. Raising the OpenTofu minimum, changing a provider major-version
+bound, or dropping a compatibility profile is an intentional compatibility
+decision.

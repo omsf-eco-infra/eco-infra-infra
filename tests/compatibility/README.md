@@ -33,9 +33,8 @@ its resource. Other committed AWS modules retain their `~> 4.0` constraint.
 
 The exact minimum profiles are reviewed compatibility-policy inputs. They must
 list every provider in the fixture's transitive module graph and remain
-consistent with the child modules' committed constraints. The runner copies a
-fixture and its selected profile to temporary storage before initialization.
-Neither profile has a committed dependency lock file.
+consistent with the child modules' committed constraints. Neither profile has a
+committed dependency lock file.
 
 ## Consumer fixtures
 
@@ -47,40 +46,45 @@ The four roots cover:
 - repository OIDC customization by itself, allowing its GitHub provider floor
   to be tested independently from the role module.
 
-The runner copies each root into a temporary repository-shaped directory. For
-the minimum profile it copies `minimum/providers.tf` into the root as
-`providers.tf`; for the latest profile it omits that file and initializes with
-`-upgrade`. It uses a separate OpenTofu data directory per fixture and a shared
-provider cache, then runs `tofu init -backend=false` and `tofu validate`
-serially. Temporary lock files and downloaded metadata are deleted on exit,
-leaving the checkout unchanged.
+CI discovers every fixture directory in both provider-profile matrix entries.
+The minimum-provider entry requires `minimum/providers.tf`, verifies that no
+`minimum_override.tf` already exists, and copies the profile to that ignored
+override filename. The latest-provider entry skips the copy. Both entries
+initialize with `-upgrade`, share a provider cache within the job, and run
+`tofu init -backend=false` followed by `tofu validate` for each fixture.
 
 ## Running locally
 
 OpenTofu must be on `PATH`. Provider resolution requires network access but no
 AWS or GitHub credentials.
 
-```console
-tests/compatibility/run.sh minimum
-tests/compatibility/run.sh latest
-```
-
-Set `TF_PLUGIN_CACHE_DIR` to reuse an existing provider cache:
+Run a minimum-provider check by temporarily installing the fixture's exact
+profile as an override:
 
 ```console
-TF_PLUGIN_CACHE_DIR=/tmp/eco-infra-provider-cache tests/compatibility/run.sh latest
+fixture=tests/compatibility/fixtures/github-oidc
+cp "$fixture/minimum/providers.tf" "$fixture/minimum_override.tf"
+TF_DATA_DIR=/tmp/eco-infra-compatibility-minimum \
+  tofu -chdir="$fixture" init -backend=false -input=false
+TF_DATA_DIR=/tmp/eco-infra-compatibility-minimum \
+  tofu -chdir="$fixture" validate
+rm "$fixture/minimum_override.tf" "$fixture/.terraform.lock.hcl"
 ```
 
-To test with OpenTofu 1.10, place that version first on `PATH`:
+For latest-compatible providers, omit the override and request an upgrade:
 
 ```console
-PATH=/path/to/tofu-1.10:$PATH tests/compatibility/run.sh minimum
+fixture=tests/compatibility/fixtures/github-oidc
+TF_DATA_DIR=/tmp/eco-infra-compatibility-latest \
+  tofu -chdir="$fixture" init -backend=false -input=false -upgrade
+TF_DATA_DIR=/tmp/eco-infra-compatibility-latest \
+  tofu -chdir="$fixture" validate
+rm "$fixture/.terraform.lock.hcl"
 ```
 
-The runner requires every fixture to contain `minimum/providers.tf`. It prints
-the OpenTofu version, fixture name, stage, and exact resolved provider versions,
-and exits at the first missing profile, initialization failure, or validation
-failure.
+Repeat those commands with each fixture directory. Set `TF_PLUGIN_CACHE_DIR` to
+reuse a provider cache. To reproduce CI's OpenTofu endpoint, place OpenTofu
+1.10.0 first on `PATH`.
 
 ## CI coverage
 
@@ -90,16 +94,13 @@ profiles with OpenTofu 1.10.0:
 - minimum OpenTofu with the exact minimum providers; and
 - minimum OpenTofu with the latest-compatible providers.
 
-Those compatibility jobs run in parallel, while the four fixtures within a job
-run serially. The separate fast-test job uses the latest OpenTofu release and
-latest-compatible providers to initialize, validate, and run the full mocked
-module and contract test suite.
-
-Every compatibility job summary records the resolved OpenTofu and provider
-versions. A floating provider endpoint can therefore reveal an upstream
-incompatibility without a repository change; use the recorded versions to
-reproduce that run.
+The two matrix entries run in parallel. Fixtures run serially inside named log
+groups, so a failure identifies the affected consumer directly. The separate
+fast-test job uses the latest OpenTofu release and latest-compatible providers
+to initialize, validate, and run the full mocked module and contract test
+suite. The `tofu init` output records the selected provider versions for
+reproducing a failure caused by a floating provider endpoint.
 
 Raising the minimum OpenTofu version, changing provider major-version bounds,
-or removing a matrix combination changes the repository's compatibility policy
-and should be reviewed as such.
+or removing a compatibility profile changes the repository's compatibility
+policy and should be reviewed as such.
