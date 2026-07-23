@@ -1,5 +1,5 @@
 module "role" {
-  source = "../../../github-actions-aws-role"
+  source = "../../../modules/internal/github-actions-aws-role"
 
   role_name                = "contract-test"
   role_secret_name         = "AWS_CONTRACT_TEST_ROLE_ARN"
@@ -15,7 +15,7 @@ module "role" {
 }
 
 module "repository_customization" {
-  source = "../.."
+  source = "../../../modules/internal/repo-oidc-customization"
 
   role_configurations = [module.role.repository_oidc_configuration]
 }

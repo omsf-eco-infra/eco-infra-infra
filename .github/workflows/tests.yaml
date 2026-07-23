@@ -8,6 +8,7 @@ on:
       - "bootstrap/**"
       - "deploy-permissions/**"
       - "modules/**"
+      - "tests/compatibility/**"
       - "tests/contracts/**"
   push:
     branches:
@@ -18,6 +19,7 @@ on:
       - "bootstrap/**"
       - "deploy-permissions/**"
       - "modules/**"
+      - "tests/compatibility/**"
       - "tests/contracts/**"
   workflow_dispatch:
 
@@ -65,6 +67,7 @@ jobs:
         modules/tfstate-aws-backend
         tests/contracts/github-oidc
         tests/contracts/internal-github-actions-aws-role
+        tests/contracts/repo-oidc-customization
         tests/contracts/tfstate-aws-backend
 
     steps:
@@ -74,6 +77,7 @@ jobs:
       - name: Set up OpenTofu
         uses: opentofu/setup-opentofu@v1
         with:
+          tofu_version: latest
           tofu_wrapper: false
 
       - name: Run fast module tests
@@ -123,6 +127,77 @@ jobs:
             echo "::error title=Fast mocked tests failed::$failed_list"
             exit 1
           fi
+
+  compatibility:
+    name: Compatibility (minimum OpenTofu, ${{ matrix.provider_profile }} providers)
+    needs: static-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        provider_profile: [minimum, latest]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up minimum OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.10.0
+          tofu_wrapper: false
+
+      - name: Record OpenTofu version
+        run: tofu version
+
+      - name: Prepare provider cache
+        env:
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tofu-plugin-cache
+        run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
+
+      - name: Install minimum provider profiles
+        if: matrix.provider_profile == 'minimum'
+        run: |
+          shopt -s nullglob
+          fixture_directories=(tests/compatibility/fixtures/*/)
+          test "${#fixture_directories[@]}" -gt 0
+
+          for fixture_directory in "${fixture_directories[@]}"; do
+            fixture_directory=${fixture_directory%/}
+            minimum_profile="$fixture_directory/minimum/providers.tf"
+            provider_override="$fixture_directory/minimum_override.tf"
+            test -f "$minimum_profile"
+            test ! -e "$provider_override"
+            cp "$minimum_profile" "$provider_override"
+          done
+
+      - name: Validate compatibility consumers
+        env:
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tofu-plugin-cache
+        run: |
+          shopt -s nullglob
+          fixture_directories=(tests/compatibility/fixtures/*/)
+          test "${#fixture_directories[@]}" -gt 0
+
+          for fixture_directory in "${fixture_directories[@]}"; do
+            fixture_directory=${fixture_directory%/}
+            fixture=${fixture_directory##*/}
+            echo "::group::$fixture (${{ matrix.provider_profile }} providers)"
+
+            TF_DATA_DIR="${RUNNER_TEMP}/compatibility-${fixture}" \
+              tofu -chdir="$fixture_directory" \
+                init -backend=false -input=false -no-color -upgrade
+            TF_DATA_DIR="${RUNNER_TEMP}/compatibility-${fixture}" \
+              tofu -chdir="$fixture_directory" validate -no-color
+
+            echo "::endgroup::"
+          done
 
   aws-oidc-smoke:
     needs: [static-checks, fast-tests]

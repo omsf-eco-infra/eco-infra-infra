@@ -1,0 +1,221 @@
+# Adding Modules
+
+This guide describes the repository work required to add a reusable
+infrastructure module. A module is complete only when its public interface,
+documentation, permission model, contract coverage, and compatibility coverage
+are all represented in the repository.
+
+## Choose the module location
+
+Add modules intended for direct use under `modules/<name>`. Add implementation
+building blocks under `modules/internal/<name>`.
+
+Add the module to the appropriate section of the root [README](README.md). Its
+own README should describe:
+
+- its purpose and the resources it manages;
+- Terraform, OpenTofu, and provider requirements;
+- inputs and outputs;
+- a usable example; and
+- relevant security, lifecycle, and operational considerations.
+
+## Add the module files
+
+A typical module contains:
+
+| File | Purpose |
+| --- | --- |
+| `main.tf` | Resources, data sources, and local values |
+| `variables.tf` | Public inputs and their validation |
+| `outputs.tf` | Public results consumed by callers or other modules |
+| `versions.tf` | Terraform/OpenTofu version compatibility and provider sources and ranges |
+| `README.md` | Public requirements, interface, examples, and operational notes |
+| `main.tftest.hcl` | Credential-free module tests |
+
+Do not add empty files when a module genuinely has no variables, outputs, or
+provider dependencies. Reusable modules normally declare provider requirements
+in `versions.tf` but do not contain provider configuration blocks. A root
+configuration that configures providers may put those `provider` blocks in a
+separate `providers.tf`.
+
+Reusable module directories must not commit `.terraform.lock.hcl`. Provider
+lock files belong to the root configuration consuming a module. Repository
+tests create temporary lock files and discard them.
+
+## Follow the compatibility policy
+
+The repository declares compatibility with Terraform and OpenTofu **1.10.0**
+and newer. Every committed module, deploy-permissions companion, contract root,
+and compatibility root must contain `versions.tf` with:
+
+```hcl
+terraform {
+  required_version = ">= 1.10.0"
+}
+```
+
+In the same `terraform` block, declare each provider source and the oldest
+provider version the module is known to support. Do not infer a floor from the
+version used during development: verify the floor through the compatibility
+fixture described below.
+
+CI currently verifies the declared floor with OpenTofu only. Terraform
+compatibility is intended but untested, so avoid using implementation-specific
+features unless the compatibility policy is deliberately changed.
+
+### Repository-wide provider upper bounds
+
+| Provider | Allowed range | Required constraint style | Applies to |
+| --- | --- | --- | --- |
+| `hashicorp/aws` | AWS 4.x only (`< 5.0.0`) | `~> 4.0` or `>= <floor>, < 5.0.0` | Bootstrap, modules, deploy-permissions modules, and test roots |
+
+There are currently no other provider upper bounds in the tracked repository.
+In particular, the GitHub provider has module-specific minimums but no
+repository-wide maximum.
+
+When introducing another provider upper bound, add a row to this table in the
+same change. Apply the bound consistently to affected modules,
+deploy-permissions companions, contract roots, compatibility fixtures,
+examples, and provider documentation.
+
+Changing the Terraform/OpenTofu floor or a provider upper bound is an
+intentional repository compatibility-policy change and should be called out
+explicitly in the pull request.
+
+## Add module-local tests
+
+Add credential-free tests in `main.tftest.hcl`. Use mocked providers and cover,
+as applicable:
+
+- important resource configuration and lifecycle behavior;
+- public outputs;
+- significant input combinations; and
+- validation failures with useful error messages.
+
+Add the module directory to `MODULE_TEST_DIRECTORIES` in
+`.github/workflows/tests.yaml`. The fast-test job initializes, validates, and
+runs `tofu test` for every directory in that list using the latest OpenTofu and
+latest-compatible providers.
+
+Run the module tests locally:
+
+```console
+tofu -chdir=modules/<name> init -backend=false
+tofu -chdir=modules/<name> validate
+tofu -chdir=modules/<name> test
+```
+
+Use `modules/internal/<name>` in those commands for an internal module.
+
+## Add deploy permissions and contract tests
+
+An AWS infrastructure module must have a matching module under
+`deploy-permissions/`, using the same relative public or `internal/` path. The
+companion must follow the repository lifecycle-policy interface and publish
+`plan`, `create`, `update`, `destroy`, and `all` outputs.
+
+Test a deploy-permissions module through an external consumer root under
+`tests/contracts/<name>`, alongside the infrastructure module it permits. Do
+not add the deploy-permissions module directory separately to the fast-test
+loop.
+
+Contract tests should verify:
+
+- shared resource identifiers and lifecycle settings;
+- successful composition through public inputs and outputs;
+- the scope and resource targets of generated policies;
+- the `plan`, `create`, `update`, `destroy`, and `all` lifecycle contract; and
+- important validation failures at the consumer boundary.
+
+Add the contract root to `MODULE_TEST_DIRECTORIES` and run it locally:
+
+```console
+tofu -chdir=tests/contracts/<name> init -backend=false
+tofu -chdir=tests/contracts/<name> validate
+tofu -chdir=tests/contracts/<name> test
+```
+
+A module without a deploy-permissions companion needs a contract root only when
+it participates in a meaningful public interface with another module.
+
+## Add compatibility coverage
+
+Add a minimal external consumer root under
+`tests/compatibility/fixtures/<name>/`. It must contain:
+
+```text
+tests/compatibility/fixtures/<name>/
+├── main.tf
+├── versions.tf
+└── minimum/
+    └── providers.tf
+```
+
+`main.tf` should exercise the supported consumer graph without credentials.
+`minimum/providers.tf` must list every provider in that graph, including
+transitive provider dependencies, and pin each one to its exact tested minimum:
+
+```hcl
+terraform {
+  required_providers {
+    example = {
+      source  = "organization/example"
+      version = "= 1.2.3"
+    }
+  }
+}
+```
+
+The CI workflow autodiscovers fixture directories, so adding the fixture does
+not require a workflow edit. The minimum-provider matrix entry requires the
+committed exact profile and copies it into the fixture root as the ignored file
+`minimum_override.tf`; the latest-provider entry omits that override.
+
+If an existing fixture already covers the new module's provider graph, extend
+that fixture and its minimum profile instead of adding redundant coverage.
+
+Run the minimum profile locally:
+
+```console
+fixture=tests/compatibility/fixtures/<name>
+cp "$fixture/minimum/providers.tf" "$fixture/minimum_override.tf"
+TF_DATA_DIR=/tmp/eco-infra-compatibility-minimum \
+  tofu -chdir="$fixture" init -backend=false -input=false
+TF_DATA_DIR=/tmp/eco-infra-compatibility-minimum \
+  tofu -chdir="$fixture" validate
+rm "$fixture/minimum_override.tf" "$fixture/.terraform.lock.hcl"
+```
+
+Then run the latest profile:
+
+```console
+fixture=tests/compatibility/fixtures/<name>
+TF_DATA_DIR=/tmp/eco-infra-compatibility-latest \
+  tofu -chdir="$fixture" init -backend=false -input=false -upgrade
+TF_DATA_DIR=/tmp/eco-infra-compatibility-latest \
+  tofu -chdir="$fixture" validate
+rm "$fixture/.terraform.lock.hcl"
+```
+
+The minimum profile verifies exact provider floors. The latest profile omits
+the exact root constraints and selects the newest versions allowed by the
+modules. Compatibility lock files and provider overrides are transient and
+must not be committed.
+
+CI runs both compatibility profiles with OpenTofu 1.10.0. The fast-test job
+provides the latest-OpenTofu/latest-provider behavioral endpoint.
+
+## Finish the repository integration
+
+Before opening the pull request:
+
+1. Update the root README module inventory and relevant
+   `deploy-permissions/README.md` documentation.
+2. Run `tofu fmt -check -recursive`.
+3. Run the new module-local and applicable contract tests.
+4. Run both compatibility profiles for the affected fixture.
+5. Confirm the minimum-profile initialization selects every intended exact
+   provider version.
+6. Run the repository pre-commit checks, including `actionlint`.
+7. Review any Terraform/OpenTofu floor or provider upper-bound change as an
+   explicit compatibility decision.

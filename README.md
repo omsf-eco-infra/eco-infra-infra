@@ -11,6 +11,9 @@ On the other hand, we hope this repository can be useful as part of our efforts 
 
 * `modules/`: This directory contains the reusable modules themselves.
 
+See [Adding Modules](ADDING_MODULES.md) for the required module structure,
+compatibility policy, test layers, and repository integration checklist.
+
 ## Modules
 
 ### End-User Modules
@@ -26,3 +29,17 @@ These modules are intended to be used as building blocks for other tools, and ar
 
 * `internal/github-actions-aws-role`: A workflow-scoped AWS IAM role for GitHub Actions, with caller-provided policies.
 * `internal/repo-oidc-customization`: Repository-wide GitHub OIDC subject customization coordinated across all of a repository's AWS roles.
+
+## Compatibility policy
+
+Committed modules declare compatibility with Terraform and OpenTofu 1.10.0 and
+newer through conventional `versions.tf` files. Continuous integration
+currently tests OpenTofu only: it keeps 1.10.0 as the fixed minimum endpoint
+and resolves `latest` at job runtime for the current endpoint.
+
+See [the compatibility test documentation](tests/compatibility/README.md) for
+the fixture structure, local commands, provider-profile behavior, and CI
+coverage. Terraform compatibility is intended but not currently exercised in
+CI. Raising the shared Terraform/OpenTofu minimum, changing a provider
+major-version bound, or dropping a compatibility profile is an intentional
+compatibility decision.
