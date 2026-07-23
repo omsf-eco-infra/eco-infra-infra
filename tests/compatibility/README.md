@@ -13,8 +13,10 @@ endpoint. `latest` is resolved when a job starts and selects the latest stable
 release; there is no periodically updated current-version pin in this
 repository.
 
-The generated provider profiles select these endpoints within the child
-modules' constraints:
+Each fixture commits an exact minimum-provider profile under
+`minimum/providers.tf`. The latest-compatible profile omits those root
+constraints and lets OpenTofu select the newest versions allowed by the child
+modules:
 
 | Fixture | Minimum providers | Latest-compatible providers |
 | --- | --- | --- |
@@ -29,12 +31,11 @@ current `github_actions_secret.value` argument. Repository OIDC customization
 requires GitHub 5.14.0 because that is the first compatible provider schema for
 its resource. Other committed AWS modules retain their `~> 4.0` constraint.
 
-The profile generator uses `tofu show -module=DIR -json` to inspect every local
-module in a consumer graph. It combines each provider's declared constraints
-and selects the greatest inclusive lower bound. The minimum profile turns those
-bounds into exact root constraints. The latest-compatible profile declares
-only provider sources, leaving the child modules' committed constraints to
-control selection. Neither profile has a committed lock file.
+The exact minimum profiles are reviewed compatibility-policy inputs. They must
+list every provider in the fixture's transitive module graph and remain
+consistent with the child modules' committed constraints. The runner copies a
+fixture and its selected profile to temporary storage before initialization.
+Neither profile has a committed dependency lock file.
 
 ## Consumer fixtures
 
@@ -46,19 +47,18 @@ The four roots cover:
 - repository OIDC customization by itself, allowing its GitHub provider floor
   to be tested independently from the role module.
 
-The runner copies each root into a temporary repository-shaped directory. It
-uses a separate OpenTofu data directory per fixture and a shared provider cache,
-then runs `tofu init -backend=false` and `tofu validate` serially. Temporary
-lock files and downloaded metadata are deleted on exit, leaving the checkout
-unchanged.
+The runner copies each root into a temporary repository-shaped directory. For
+the minimum profile it copies `minimum/providers.tf` into the root as
+`providers.tf`; for the latest profile it omits that file and initializes with
+`-upgrade`. It uses a separate OpenTofu data directory per fixture and a shared
+provider cache, then runs `tofu init -backend=false` and `tofu validate`
+serially. Temporary lock files and downloaded metadata are deleted on exit,
+leaving the checkout unchanged.
 
 ## Running locally
 
-OpenTofu must be on `PATH`. Profile generation requires OpenTofu 1.11 or newer
-for static module inspection, even when the generated profile will be tested
-with OpenTofu 1.10. Set `TOFU_INSPECT` to a separate current OpenTofu binary in
-that case. Provider resolution requires network access but no AWS or GitHub
-credentials.
+OpenTofu must be on `PATH`. Provider resolution requires network access but no
+AWS or GitHub credentials.
 
 ```console
 tests/compatibility/run.sh minimum
@@ -71,17 +71,16 @@ Set `TF_PLUGIN_CACHE_DIR` to reuse an existing provider cache:
 TF_PLUGIN_CACHE_DIR=/tmp/eco-infra-provider-cache tests/compatibility/run.sh latest
 ```
 
-To test OpenTofu 1.10 with a separate inspection binary:
+To test with OpenTofu 1.10, place that version first on `PATH`:
 
 ```console
-TOFU_INSPECT=/path/to/current/tofu PATH=/path/to/tofu-1.10:$PATH \
-  tests/compatibility/run.sh minimum
+PATH=/path/to/tofu-1.10:$PATH tests/compatibility/run.sh minimum
 ```
 
-The generator rejects provider constraints without a statically derivable,
-inclusive lower bound. The runner prints the OpenTofu version, fixture name,
-stage, and exact resolved provider versions. It exits at the first failed
-profile generation, initialization, or validation.
+The runner requires every fixture to contain `minimum/providers.tf`. It prints
+the OpenTofu version, fixture name, stage, and exact resolved provider versions,
+and exits at the first missing profile, initialization failure, or validation
+failure.
 
 ## CI matrix
 

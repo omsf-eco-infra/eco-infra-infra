@@ -5,8 +5,6 @@ on:
     paths:
       - ".pre-commit-config.yaml"
       - ".github/workflows/tests.yaml"
-      - "devtools/**"
-      - "pixi.toml"
       - "bootstrap/**"
       - "deploy-permissions/**"
       - "modules/**"
@@ -18,8 +16,6 @@ on:
     paths:
       - ".pre-commit-config.yaml"
       - ".github/workflows/tests.yaml"
-      - "devtools/**"
-      - "pixi.toml"
       - "bootstrap/**"
       - "deploy-permissions/**"
       - "modules/**"
@@ -48,17 +44,6 @@ jobs:
 
       - name: Check OpenTofu formatting
         run: tofu fmt -check -recursive
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install development test requirements
-        run: python -m pip install "pytest>=9.0,<10"
-
-      - name: Test development tools
-        run: python -m pytest devtools/tests
 
       - name: Lint GitHub Actions workflows
         uses: docker://rhysd/actionlint:1.7.12
@@ -167,15 +152,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up OpenTofu for provider inspection
-        uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: latest
-          tofu_wrapper: false
-
-      - name: Preserve provider inspector
-        run: cp "$(command -v tofu)" "$RUNNER_TEMP/tofu-inspect"
-
       - name: Set up tested OpenTofu
         uses: opentofu/setup-opentofu@v1
         with:
@@ -188,7 +164,6 @@ jobs:
       - name: Validate compatibility consumers
         env:
           TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tofu-plugin-cache
-          TOFU_INSPECT: ${{ runner.temp }}/tofu-inspect
         run: |
           mkdir -p "$TF_PLUGIN_CACHE_DIR"
           tests/compatibility/run.sh "${{ matrix.provider_profile }}"
@@ -219,15 +194,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up OpenTofu for provider inspection
-        uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: latest
-          tofu_wrapper: false
-
-      - name: Preserve provider inspector
-        run: cp "$(command -v tofu)" "$RUNNER_TEMP/tofu-inspect"
-
       - name: Set up tested OpenTofu
         uses: opentofu/setup-opentofu@v1
         with:
@@ -240,7 +206,6 @@ jobs:
       - name: Validate compatibility consumers
         env:
           TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tofu-plugin-cache
-          TOFU_INSPECT: ${{ runner.temp }}/tofu-inspect
         run: |
           mkdir -p "$TF_PLUGIN_CACHE_DIR"
           tests/compatibility/run.sh "${{ matrix.provider_profile }}"

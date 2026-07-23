@@ -10,9 +10,6 @@ fi
 provider_profile=$1
 script_directory=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repository_root=$(cd -- "$script_directory/../.." && pwd)
-provider_generator="$repository_root/devtools/generate_compatibility_providers.py"
-python_executable=${PYTHON:-python3}
-tofu_inspector=${TOFU_INSPECT:-tofu}
 work_root=$(mktemp -d "${TMPDIR:-/tmp}/eco-infra-compatibility.XXXXXX")
 work_repository="$work_root/repository"
 plugin_cache_directory=${TF_PLUGIN_CACHE_DIR:-"$work_root/plugin-cache"}
@@ -76,17 +73,19 @@ for source_fixture in "${fixture_directories[@]}"; do
 
   working_fixture="$work_repository/tests/compatibility/fixtures/$fixture"
   data_directory="$work_root/data/$fixture"
+  minimum_providers="$source_fixture/minimum/providers.tf"
 
   mkdir -p "$working_fixture" "$data_directory"
   cp "$source_fixture/main.tf" "$source_fixture/versions.tofu" "$working_fixture/"
 
-  if ! "$python_executable" "$provider_generator" \
-    --fixture "$source_fixture" \
-    --profile "$provider_profile" \
-    --output "$working_fixture/providers.tf" \
-    --tofu "$tofu_inspector"; then
+  if [[ ! -f "$minimum_providers" ]]; then
+    echo "Missing minimum provider profile: $minimum_providers" >&2
     echo "::endgroup::"
-    fail_fixture "$fixture" "Provider profile generation"
+    fail_fixture "$fixture" "Minimum provider profile"
+  fi
+
+  if [[ "$provider_profile" == "minimum" ]]; then
+    cp "$minimum_providers" "$working_fixture/providers.tf"
   fi
 
   init_arguments=(-backend=false -input=false -no-color)
