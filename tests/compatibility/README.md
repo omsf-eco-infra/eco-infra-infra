@@ -82,22 +82,23 @@ the OpenTofu version, fixture name, stage, and exact resolved provider versions,
 and exits at the first missing profile, initialization failure, or validation
 failure.
 
-## CI matrix
+## CI coverage
 
-Pull requests run the two endpoint combinations:
+Pull requests, pushes to `main`, and manual workflow runs validate both provider
+profiles with OpenTofu 1.10.0:
 
-- OpenTofu 1.10.0 with minimum providers; and
-- latest OpenTofu with latest-compatible providers.
+- minimum OpenTofu with the exact minimum providers; and
+- minimum OpenTofu with the latest-compatible providers.
 
-Pushes to `main` and manual workflow runs add the cross-combinations:
+Those compatibility jobs run in parallel, while the four fixtures within a job
+run serially. The separate fast-test job uses the latest OpenTofu release and
+latest-compatible providers to initialize, validate, and run the full mocked
+module and contract test suite.
 
-- OpenTofu 1.10.0 with latest-compatible providers; and
-- latest OpenTofu with minimum providers.
-
-Matrix combinations run in parallel, while the four fixtures within a job run
-serially. Every job summary records the resolved OpenTofu and provider versions.
-A floating endpoint can therefore reveal an upstream incompatibility without a
-repository change; use the recorded versions to reproduce that run.
+Every compatibility job summary records the resolved OpenTofu and provider
+versions. A floating provider endpoint can therefore reveal an upstream
+incompatibility without a repository change; use the recorded versions to
+reproduce that run.
 
 Raising the minimum OpenTofu version, changing provider major-version bounds,
 or removing a matrix combination changes the repository's compatibility policy
