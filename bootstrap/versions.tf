@@ -12,9 +12,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 4.0"
     }
+    # github_actions_secret.value requires 6.12.0 or newer.
     github = {
       source  = "integrations/github"
-      version = ">= 6.0.0"
+      version = ">= 6.12.0"
     }
   }
 }
