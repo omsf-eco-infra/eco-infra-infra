@@ -1,17 +1,20 @@
 # Compatibility tests
 
 These tests exercise the committed modules through minimal external consumer
-roots. They check that the supported OpenTofu and provider endpoints can
-initialize and validate the public module interfaces without cloud credentials.
-The uncommitted Cloudflare backend is outside this suite.
+roots. The roots declare compatibility with Terraform and OpenTofu, but this
+suite currently uses OpenTofu only. It checks that the supported OpenTofu and
+provider endpoints can initialize and validate the public module interfaces
+without cloud credentials. The uncommitted Cloudflare backend is outside this
+suite.
 
 ## Supported versions
 
-The minimum supported OpenTofu version is 1.10.0. CI pins that endpoint to
-`1.10.0` and passes `latest` to `opentofu/setup-opentofu` for the current
-endpoint. `latest` is resolved when a job starts and selects the latest stable
-release; there is no periodically updated current-version pin in this
-repository.
+The modules and consumer roots declare Terraform and OpenTofu 1.10.0 as their
+shared minimum in `versions.tf`. CI pins the tested minimum endpoint to
+OpenTofu `1.10.0`. The fast-test job passes `latest` to
+`opentofu/setup-opentofu`; it is resolved when the job starts and selects the
+latest stable OpenTofu release. Terraform compatibility is intended but not
+currently tested.
 
 Each fixture commits an exact minimum-provider profile under
 `minimum/providers.tf`. The latest-compatible profile omits those root
@@ -101,6 +104,6 @@ to initialize, validate, and run the full mocked module and contract test
 suite. The `tofu init` output records the selected provider versions for
 reproducing a failure caused by a floating provider endpoint.
 
-Raising the minimum OpenTofu version, changing provider major-version bounds,
-or removing a compatibility profile changes the repository's compatibility
-policy and should be reviewed as such.
+Raising the shared Terraform/OpenTofu minimum, changing provider major-version
+bounds, or removing a compatibility profile changes the repository's
+compatibility policy and should be reviewed as such.

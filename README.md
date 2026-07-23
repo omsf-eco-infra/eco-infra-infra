@@ -32,10 +32,10 @@ These modules are intended to be used as building blocks for other tools, and ar
 
 ## Compatibility policy
 
-Committed modules support OpenTofu 1.10.0 and newer. Continuous integration
-keeps 1.10.0 as the fixed minimum endpoint and resolves `latest` at job runtime
-for the current endpoint, so updating the current OpenTofu version does not
-require a repository commit.
+Committed modules declare compatibility with Terraform and OpenTofu 1.10.0 and
+newer through conventional `versions.tf` files. Continuous integration
+currently tests OpenTofu only: it keeps 1.10.0 as the fixed minimum endpoint
+and resolves `latest` at job runtime for the current endpoint.
 
 Provider compatibility is bounded by each module's `required_providers`
 constraints. The tested provider floors are:
@@ -49,6 +49,7 @@ constraints. The tested provider floors are:
 
 See [the compatibility test documentation](tests/compatibility/README.md) for
 the consumer fixtures, local commands, exact provider profiles, and CI
-coverage. Raising the OpenTofu minimum, changing a provider major-version
-bound, or dropping a compatibility profile is an intentional compatibility
-decision.
+coverage. Terraform compatibility is intended but not currently exercised in
+CI. Raising the shared Terraform/OpenTofu minimum, changing a provider
+major-version bound, or dropping a compatibility profile is an intentional
+compatibility decision.

@@ -14,7 +14,7 @@ Add the module to the appropriate section of the root [README](README.md). Its
 own README should describe:
 
 - its purpose and the resources it manages;
-- OpenTofu and provider requirements;
+- Terraform, OpenTofu, and provider requirements;
 - inputs and outputs;
 - a usable example; and
 - relevant security, lifecycle, and operational considerations.
@@ -28,13 +28,15 @@ A typical module contains:
 | `main.tf` | Resources, data sources, and local values |
 | `variables.tf` | Public inputs and their validation |
 | `outputs.tf` | Public results consumed by callers or other modules |
-| `providers.tf` | Provider sources and supported version ranges |
-| `versions.tofu` | The repository-wide OpenTofu version floor |
+| `versions.tf` | Terraform/OpenTofu version compatibility and provider sources and ranges |
 | `README.md` | Public requirements, interface, examples, and operational notes |
 | `main.tftest.hcl` | Credential-free module tests |
 
 Do not add empty files when a module genuinely has no variables, outputs, or
-provider dependencies.
+provider dependencies. Reusable modules normally declare provider requirements
+in `versions.tf` but do not contain provider configuration blocks. A root
+configuration that configures providers may put those `provider` blocks in a
+separate `providers.tf`.
 
 Reusable module directories must not commit `.terraform.lock.hcl`. Provider
 lock files belong to the root configuration consuming a module. Repository
@@ -42,9 +44,9 @@ tests create temporary lock files and discard them.
 
 ## Follow the compatibility policy
 
-The repository-wide minimum supported OpenTofu version is **1.10.0**. Every
-committed module, deploy-permissions companion, contract root, and compatibility
-root must contain `versions.tofu` with:
+The repository declares compatibility with Terraform and OpenTofu **1.10.0**
+and newer. Every committed module, deploy-permissions companion, contract root,
+and compatibility root must contain `versions.tf` with:
 
 ```hcl
 terraform {
@@ -52,9 +54,14 @@ terraform {
 }
 ```
 
-In `providers.tf`, declare the oldest provider version the module is known to
-support. Do not infer a floor from the version used during development: verify
-the floor through the compatibility fixture described below.
+In the same `terraform` block, declare each provider source and the oldest
+provider version the module is known to support. Do not infer a floor from the
+version used during development: verify the floor through the compatibility
+fixture described below.
+
+CI currently verifies the declared floor with OpenTofu only. Terraform
+compatibility is intended but untested, so avoid using implementation-specific
+features unless the compatibility policy is deliberately changed.
 
 ### Repository-wide provider upper bounds
 
@@ -71,9 +78,9 @@ same change. Apply the bound consistently to affected modules,
 deploy-permissions companions, contract roots, compatibility fixtures,
 examples, and provider documentation.
 
-Changing the OpenTofu floor or a provider upper bound is an intentional
-repository compatibility-policy change and should be called out explicitly in
-the pull request.
+Changing the Terraform/OpenTofu floor or a provider upper bound is an
+intentional repository compatibility-policy change and should be called out
+explicitly in the pull request.
 
 ## Add module-local tests
 
@@ -139,7 +146,7 @@ Add a minimal external consumer root under
 ```text
 tests/compatibility/fixtures/<name>/
 ├── main.tf
-├── versions.tofu
+├── versions.tf
 └── minimum/
     └── providers.tf
 ```
@@ -210,5 +217,5 @@ Before opening the pull request:
 5. Confirm the minimum-profile initialization selects every intended exact
    provider version.
 6. Run the repository pre-commit checks, including `actionlint`.
-7. Review any OpenTofu floor or provider upper-bound change as an explicit
-   compatibility decision.
+7. Review any Terraform/OpenTofu floor or provider upper-bound change as an
+   explicit compatibility decision.
